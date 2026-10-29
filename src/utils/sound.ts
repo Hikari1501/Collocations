@@ -6,24 +6,36 @@ class SoundSystem {
   private muted: boolean = false;
 
   constructor() {
-    // Check localStorage for audio preference
+    // Check localStorage for audio preference safely
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('collocation_blaster_muted');
-      if (saved !== null) {
-        this.muted = saved === 'true';
+      try {
+        const saved = localStorage.getItem('collocation_blaster_muted');
+        if (saved !== null) {
+          this.muted = saved === 'true';
+        }
+      } catch {
+        // Storage restricted in sandbox/iframe
       }
     }
   }
 
   private initContext() {
     if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
+      try {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+        }
+      } catch {
+        // AudioContext restricted
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      try {
+        this.ctx.resume();
+      } catch {
+        // Ignore
+      }
     }
   }
 
@@ -34,7 +46,11 @@ class SoundSystem {
   public toggleMute(): boolean {
     this.muted = !this.muted;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('collocation_blaster_muted', String(this.muted));
+      try {
+        localStorage.setItem('collocation_blaster_muted', String(this.muted));
+      } catch {
+        // Ignore
+      }
     }
     return this.muted;
   }

@@ -106,7 +106,11 @@ export default function App() {
   // Save decks to localStorage whenever updated
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('collocation_blaster_decks', JSON.stringify(decks));
+      try {
+        localStorage.setItem('collocation_blaster_decks', JSON.stringify(decks));
+      } catch {
+        // Ignore if storage is blocked
+      }
     }
   }, [decks]);
 
@@ -593,7 +597,11 @@ export default function App() {
 
     setHighScores(updated);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('collocation_blaster_highscores', JSON.stringify(updated));
+      try {
+        localStorage.setItem('collocation_blaster_highscores', JSON.stringify(updated));
+      } catch {
+        // Storage restricted
+      }
     }
   };
 
