@@ -11,26 +11,42 @@ export const BossShip: React.FC<BossShipProps> = ({ boss, isHitFlash }) => {
   const hpPercent = Math.max(0, (boss.currentHp / boss.maxHp) * 100);
   const bankAngle = Math.max(-14, Math.min(14, boss.vx * 35));
   const isTitan = boss.name.includes('TITAN');
+  const isDefeated = boss.isDefeated;
+  const defeatProgress = boss.defeatStage ?? 0;
 
   return (
     <div
       id="flying-boss-ship"
-      className="fixed z-20 pointer-events-none select-none transition-transform duration-75"
+      className={`fixed z-20 pointer-events-none select-none transition-transform duration-75 ${
+        isDefeated ? 'animate-boss-tremble' : ''
+      }`}
       style={{
         left: `${boss.x}%`,
         top: `${boss.y}%`,
-        transform: `translate(-50%, -50%) rotate(${bankAngle}deg)`,
+        transform: isDefeated
+          ? undefined
+          : `translate(-50%, -50%) rotate(${bankAngle}deg)`,
       }}
     >
       <div className="relative flex flex-col items-center">
         {/* Floating Monster Health & Status Badge (Compact Nameplate Above Monster) */}
         <div className="mb-1 flex flex-col items-center gap-1 z-30">
-          <div className="flex items-center gap-2 bg-slate-950/90 border border-rose-500/80 px-3 py-1 rounded-full shadow-lg backdrop-blur-md">
-            <Skull className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+          <div
+            className={`flex items-center gap-2 px-3 py-1 rounded-full shadow-lg backdrop-blur-md transition-colors ${
+              isDefeated
+                ? 'bg-rose-950 border-2 border-red-500 animate-pulse shadow-[0_0_25px_#ef4444]'
+                : 'bg-slate-950/90 border border-rose-500/80'
+            }`}
+          >
+            <Skull className={`w-3.5 h-3.5 ${isDefeated ? 'text-amber-400 animate-spin' : 'text-rose-500 animate-pulse'}`} />
             <span className="text-[11px] font-black tracking-wider text-rose-300 uppercase font-arcade">
-              {boss.name}
+              {isDefeated ? 'CORE COLLAPSE IN PROGRESS!' : boss.name}
             </span>
-            <span className="text-[10px] bg-rose-950 text-rose-300 font-bold px-2 py-0.5 rounded-full border border-rose-800">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+              isDefeated 
+                ? 'bg-red-900 text-yellow-300 border-red-500 animate-ping'
+                : 'bg-rose-950 text-rose-300 border-rose-800'
+            }`}>
               {boss.currentHp} / {boss.maxHp} HP
             </span>
           </div>
@@ -39,27 +55,35 @@ export const BossShip: React.FC<BossShipProps> = ({ boss, isHitFlash }) => {
           <div className="w-48 sm:w-60 bg-slate-950 border border-rose-900 rounded-full h-2.5 overflow-hidden p-0.5 shadow-md">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                hpPercent > 50
+                isDefeated
+                  ? 'bg-red-600 animate-pulse'
+                  : hpPercent > 50
                   ? 'bg-gradient-to-r from-rose-500 via-amber-400 to-yellow-300'
                   : 'bg-gradient-to-r from-red-600 to-rose-500'
               }`}
-              style={{ width: `${hpPercent}%` }}
+              style={{ width: `${isDefeated ? 0 : hpPercent}%` }}
             />
           </div>
 
           {/* Target Base Word Hint */}
-          <div className="px-2.5 py-0.5 bg-slate-900/95 border border-cyan-400/60 rounded-full flex items-center gap-1.5 shadow-sm">
-            <Zap className="w-3 h-3 text-cyan-400 animate-pulse" />
-            <span className="text-[10px] text-slate-300 font-medium">
-              Shoot <span className="font-bold text-cyan-300">{boss.baseWord}</span> collocations!
-            </span>
-          </div>
+          {!isDefeated && (
+            <div className="px-2.5 py-0.5 bg-slate-900/95 border border-cyan-400/60 rounded-full flex items-center gap-1.5 shadow-sm">
+              <Zap className="w-3 h-3 text-cyan-400 animate-pulse" />
+              <span className="text-[10px] text-slate-300 font-medium">
+                Shoot <span className="font-bold text-cyan-300">{boss.baseWord}</span> collocations!
+              </span>
+            </div>
+          )}
         </div>
 
         {/* --- ACTUAL MONSTER CREATURE SPRITE (NOT A TEXT BOX) --- */}
         <div
           className={`relative transition-all duration-150 ${
-            isHitFlash
+            isDefeated
+              ? defeatProgress > 0.85
+                ? 'scale-150 opacity-0 filter brightness-300 blur-sm duration-500'
+                : 'scale-110 filter brightness-200 contrast-150 drop-shadow-[0_0_60px_#ef4444]'
+              : isHitFlash
               ? 'scale-115 filter brightness-200 drop-shadow-[0_0_50px_#ef4444]'
               : 'filter drop-shadow-[0_0_30px_rgba(244,63,94,0.6)]'
           }`}
@@ -67,7 +91,9 @@ export const BossShip: React.FC<BossShipProps> = ({ boss, isHitFlash }) => {
           {/* Forcefield Aura */}
           <div
             className={`absolute -inset-3 rounded-full border-2 transition-all duration-200 pointer-events-none animate-pulse ${
-              isHitFlash
+              isDefeated
+                ? 'border-yellow-400 bg-red-600/30'
+                : isHitFlash
                 ? 'border-white bg-white/20'
                 : 'border-rose-500/60 bg-rose-500/10'
             }`}
@@ -316,6 +342,40 @@ export const BossShip: React.FC<BossShipProps> = ({ boss, isHitFlash }) => {
           {/* Muzzle Flash Shockwave When Firing Words */}
           {boss.isFiring && (
             <div className="absolute top-36 left-1/2 -translate-x-1/2 w-16 h-16 bg-cyan-400/40 rounded-full animate-ping pointer-events-none" />
+          )}
+
+          {/* --- CASCADING DEFEAT EXPLOSION BURSTS --- */}
+          {isDefeated && boss.defeatBursts && boss.defeatBursts.map((burst) => (
+            <div
+              key={burst.id}
+              className="absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 animate-explosion-pop z-40"
+              style={{
+                left: `calc(50% + ${burst.x}px)`,
+                top: `calc(50% + ${burst.y}px)`,
+                width: `${burst.size}px`,
+                height: `${burst.size}px`,
+              }}
+            >
+              {/* Outer Fiery Blast Glow */}
+              <div
+                className="w-full h-full rounded-full border-2 opacity-95 shadow-2xl"
+                style={{
+                  borderColor: burst.color,
+                  backgroundColor: `${burst.color}99`,
+                  boxShadow: `0 0 45px ${burst.color}`,
+                }}
+              />
+              {/* White Hot Flash Spark */}
+              <div className="absolute inset-1/4 rounded-full bg-white animate-ping" />
+            </div>
+          ))}
+
+          {/* Expanding Mega Shockwave Rings on Final Shatter */}
+          {isDefeated && defeatProgress > 0.65 && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 rounded-full border-4 border-amber-300 animate-mega-ring pointer-events-none z-30" />
+          )}
+          {isDefeated && defeatProgress > 0.82 && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full border-4 border-cyan-400 animate-mega-ring pointer-events-none z-30" />
           )}
         </div>
       </div>

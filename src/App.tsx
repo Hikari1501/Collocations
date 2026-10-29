@@ -271,9 +271,140 @@ export default function App() {
     );
   };
 
+  // Dramatic Boss Defeat Animation Sequence (Cascading explosions, screen rumble, mega detonation, victory fanfare)
+  const triggerBossDefeatSequence = (boss: BossState, activeBaseWord: string) => {
+    // 1. Immediately halt normal enemy word spawns and clear active words
+    setFlyingWords([]);
+    setIsScreenShaking(true);
+
+    const collapsingBoss: BossState = {
+      ...boss,
+      currentHp: 0,
+      isDefeated: true,
+      defeatStage: 0.1,
+      defeatBursts: [],
+    };
+    bossStateRef.current = collapsingBoss;
+    setBossState(collapsingBoss);
+
+    sound.playBossExplosionCrunch();
+
+    showFeedback(
+      'BOSS_HIT',
+      'TITAN CORE MELTDOWN!',
+      `Shield breached! ${boss.name} is collapsing!`,
+      activeBaseWord,
+      ''
+    );
+
+    // Timeline of cascading explosions across the monster's body
+    const explosionSchedule = [
+      { delay: 180, x: -45, y: -25, size: 52, color: '#f59e0b' },
+      { delay: 450, x: 50, y: -20, size: 58, color: '#ef4444' },
+      { delay: 780, x: -30, y: 35, size: 64, color: '#06b6d4' },
+      { delay: 1080, x: 35, y: 30, size: 70, color: '#ec4899' },
+      { delay: 1380, x: 0, y: -10, size: 78, color: '#fbbf24' },
+      { delay: 1680, x: -55, y: 15, size: 74, color: '#ef4444' },
+      { delay: 1950, x: 55, y: 10, size: 76, color: '#f97316' },
+    ];
+
+    explosionSchedule.forEach((item, idx) => {
+      setTimeout(() => {
+        sound.playBossExplosionCrunch();
+        setBossState((prev) => {
+          if (!prev) return null;
+          const nextBursts = [
+            ...(prev.defeatBursts || []),
+            {
+              id: `burst-${Date.now()}-${idx}`,
+              x: item.x,
+              y: item.y,
+              size: item.size,
+              color: item.color,
+            },
+          ];
+          const updated = {
+            ...prev,
+            defeatStage: 0.2 + (idx / explosionSchedule.length) * 0.5,
+            defeatBursts: nextBursts,
+          };
+          bossStateRef.current = updated;
+          return updated;
+        });
+      }, item.delay);
+    });
+
+    // Final Mega Detonation at t=2300ms
+    setTimeout(() => {
+      sound.playMegaBossDetonation();
+
+      setBossState((prev) => {
+        if (!prev) return null;
+        const updated = {
+          ...prev,
+          defeatStage: 0.95,
+        };
+        bossStateRef.current = updated;
+        return updated;
+      });
+
+      confetti({
+        particleCount: 160,
+        spread: 120,
+        origin: { x: (boss.x || 50) / 100, y: (boss.y || 25) / 100 },
+        colors: ['#ef4444', '#f59e0b', '#22d3ee', '#ffffff', '#ec4899'],
+      });
+    }, 2300);
+
+    // Conclusion at t=2900ms: award points, show clear banner, transition
+    setTimeout(() => {
+      setIsScreenShaking(false);
+      sound.playBossDefeated();
+
+      confetti({
+        particleCount: 100,
+        spread: 90,
+        origin: { y: 0.5 },
+      });
+
+      setStats((prev) => ({
+        ...prev,
+        score: prev.score + 1500,
+        bossesDefeated: prev.bossesDefeated + 1,
+      }));
+
+      showFeedback(
+        'LEVEL_UP',
+        'TITAN OBLITERATED!',
+        `Magnificent! ${boss.name} was defeated! +1,500 Bonus Points!`,
+        activeBaseWord,
+        ''
+      );
+
+      setBossState(null);
+      bossStateRef.current = null;
+      setGameState('ROUND_CLEAR');
+
+      setTimeout(() => {
+        if (gameMode === 'BOSS_RUSH') {
+          setGameState('VICTORY');
+        } else {
+          const nextRoundIdx = currentRoundIndex + 1;
+          if (nextRoundIdx < activeDeck.rounds.length) {
+            setCurrentRoundIndex(nextRoundIdx);
+            initiateRound(activeDeck.rounds[nextRoundIdx]);
+          } else {
+            setGameState('VICTORY');
+          }
+        }
+      }, 2500);
+    }, 2900);
+  };
+
   // Spawn word engine
   const spawnWord = useCallback(() => {
     if (gameState !== 'PLAYING' && gameState !== 'BOSS_BATTLE') return;
+    if (bossStateRef.current?.isDefeated) return;
 
     const isBoss = gameState === 'BOSS_BATTLE' && bossStateRef.current !== null;
     const currentBoss = bossStateRef.current;
@@ -391,6 +522,7 @@ export default function App() {
       // 2. Animate and fly Boss Ship dynamically across arena!
       setBossState((prevBoss) => {
         if (!prevBoss) return null;
+        if (prevBoss.isDefeated) return prevBoss;
         let newX = prevBoss.x + prevBoss.vx;
         let newVx = prevBoss.vx;
         let newY = prevBoss.y;
@@ -598,42 +730,7 @@ export default function App() {
         setBossState(updatedBoss);
 
         if (newHp <= 0) {
-          sound.playBossDefeated();
-          confetti({
-            particleCount: 150,
-            spread: 100,
-            origin: { y: 0.3 },
-          });
-
-          setStats((prev) => ({
-            ...prev,
-            score: prev.score + 1500,
-            bossesDefeated: prev.bossesDefeated + 1,
-          }));
-
-          showFeedback(
-            'BOSS_HIT',
-            'TITAN DESTROYED!',
-            `Magnificent! ${bossState.name} was defeated! +1,500 Bonus Points!`,
-            activeBaseWord,
-            ''
-          );
-
-          setGameState('ROUND_CLEAR');
-
-          setTimeout(() => {
-            if (gameMode === 'BOSS_RUSH') {
-              setGameState('VICTORY');
-            } else {
-              const nextRoundIdx = currentRoundIndex + 1;
-              if (nextRoundIdx < activeDeck.rounds.length) {
-                setCurrentRoundIndex(nextRoundIdx);
-                initiateRound(activeDeck.rounds[nextRoundIdx]);
-              } else {
-                setGameState('VICTORY');
-              }
-            }
-          }, 2400);
+          triggerBossDefeatSequence(updatedBoss, activeBaseWord);
           return;
         }
       }

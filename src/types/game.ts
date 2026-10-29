@@ -55,6 +55,14 @@ export interface FlyingWord {
   hitType?: 'CORRECT' | 'WRONG';
 }
 
+export interface BossDefeatBurst {
+  id: string;
+  x: number; // offset px from center
+  y: number; // offset px from center
+  color: string;
+  size: number;
+}
+
 export interface BossState {
   name: string;
   subtitle: string;
@@ -72,6 +80,9 @@ export interface BossState {
   flyAngle: number;
   isHitFlash?: boolean;
   isFiring?: boolean;
+  isDefeated?: boolean;
+  defeatStage?: number; // 0 to 1
+  defeatBursts?: BossDefeatBurst[];
 }
 
 export interface LaserBeam {

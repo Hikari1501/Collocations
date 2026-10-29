@@ -153,24 +153,24 @@ class SoundSystem {
 
     try {
       this.bgmGain = ctx.createGain();
-      // Well-balanced background music master volume (0.22)
-      this.bgmGain.gain.setValueAtTime(0.22, ctx.currentTime);
+      // High-clarity, loud BGM master volume (0.72 - punchy and prominently audible)
+      this.bgmGain.gain.setValueAtTime(0.72, ctx.currentTime);
       this.bgmGain.connect(this.masterGain || ctx.destination);
     } catch {
       return;
     }
 
-    // Melodic synthwave arpeggios
+    // Melodic synthwave arpeggios with driving basslines
     const patterns: Record<BGMTrack, { notes: number[]; bass: number[]; stepTime: number }> = {
       title: {
         notes: [261.63, 329.63, 392.0, 523.25, 493.88, 392.0, 329.63, 261.63, 220.0, 261.63, 329.63, 440.0],
         bass: [130.81, 130.81, 110.0, 110.0, 146.83, 146.83, 130.81, 130.81],
-        stepTime: 200,
+        stepTime: 180,
       },
       gameplay: {
         notes: [220.0, 261.63, 329.63, 440.0, 392.0, 329.63, 261.63, 293.66, 349.23, 440.0, 523.25, 440.0, 349.23, 293.66],
         bass: [110.0, 110.0, 146.83, 146.83, 110.0, 110.0, 164.81, 164.81],
-        stepTime: 140,
+        stepTime: 135,
       },
       boss: {
         notes: [164.81, 174.61, 196.0, 220.0, 246.94, 220.0, 196.0, 174.61, 164.81, 329.63, 349.23, 392.0],
@@ -191,39 +191,79 @@ class SoundSystem {
       const bassFreq = pattern.bass[Math.floor(this.noteStep / 2) % pattern.bass.length];
 
       try {
-        // Lead Arpeggio Synth Note
+        // 1. Primary Lead Arpeggio Synth Note (Loud & Bright)
         const leadOsc = this.ctx.createOscillator();
         const leadGain = this.ctx.createGain();
 
         leadOsc.type = track === 'boss' ? 'sawtooth' : 'triangle';
         leadOsc.frequency.setValueAtTime(noteFreq, now);
 
-        const leadVol = track === 'boss' ? 0.28 : 0.32;
+        const leadVol = track === 'boss' ? 0.62 : 0.58;
         leadGain.gain.setValueAtTime(leadVol, now);
-        leadGain.gain.exponentialRampToValueAtTime(0.001, now + (pattern.stepTime * 0.9) / 1000);
+        leadGain.gain.exponentialRampToValueAtTime(0.001, now + (pattern.stepTime * 1.05) / 1000);
 
         leadOsc.connect(leadGain);
         leadGain.connect(this.bgmGain);
 
         leadOsc.start(now);
-        leadOsc.stop(now + (pattern.stepTime * 0.9) / 1000);
+        leadOsc.stop(now + (pattern.stepTime * 1.05) / 1000);
 
-        // Bass Note on alternate beats
+        // Shimmer unison layer for lush stereo presence
+        const shimmerOsc = this.ctx.createOscillator();
+        const shimmerGain = this.ctx.createGain();
+        shimmerOsc.type = 'sine';
+        shimmerOsc.frequency.setValueAtTime(noteFreq * 2, now); // Upper octave harmonic
+        shimmerGain.gain.setValueAtTime(leadVol * 0.35, now);
+        shimmerGain.gain.exponentialRampToValueAtTime(0.001, now + (pattern.stepTime * 0.9) / 1000);
+        shimmerOsc.connect(shimmerGain);
+        shimmerGain.connect(this.bgmGain);
+        shimmerOsc.start(now);
+        shimmerOsc.stop(now + (pattern.stepTime * 0.9) / 1000);
+
+        // 2. Punchy Bass Note on alternate beats
         if (this.noteStep % 2 === 0) {
           const bassOsc = this.ctx.createOscillator();
           const bassGain = this.ctx.createGain();
 
-          bassOsc.type = 'sine';
+          bassOsc.type = track === 'boss' ? 'sawtooth' : 'triangle';
           bassOsc.frequency.setValueAtTime(bassFreq, now);
 
-          bassGain.gain.setValueAtTime(0.42, now);
-          bassGain.gain.exponentialRampToValueAtTime(0.001, now + (pattern.stepTime * 1.8) / 1000);
+          bassGain.gain.setValueAtTime(0.68, now);
+          bassGain.gain.exponentialRampToValueAtTime(0.001, now + (pattern.stepTime * 1.9) / 1000);
 
           bassOsc.connect(bassGain);
           bassGain.connect(this.bgmGain);
 
           bassOsc.start(now);
-          bassOsc.stop(now + (pattern.stepTime * 1.8) / 1000);
+          bassOsc.stop(now + (pattern.stepTime * 1.9) / 1000);
+        }
+
+        // 3. Driving Retro Arcade Rhythm (Punchy Kick & Hi-hat)
+        if (this.noteStep % 4 === 0) {
+          // Kick Drum on downbeat
+          const kickOsc = this.ctx.createOscillator();
+          const kickGain = this.ctx.createGain();
+          kickOsc.type = 'sine';
+          kickOsc.frequency.setValueAtTime(140, now);
+          kickOsc.frequency.exponentialRampToValueAtTime(38, now + 0.1);
+          kickGain.gain.setValueAtTime(0.55, now);
+          kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          kickOsc.connect(kickGain);
+          kickGain.connect(this.bgmGain);
+          kickOsc.start(now);
+          kickOsc.stop(now + 0.1);
+        } else if (this.noteStep % 2 === 1) {
+          // Hi-hat tick on offbeats
+          const hatOsc = this.ctx.createOscillator();
+          const hatGain = this.ctx.createGain();
+          hatOsc.type = 'square';
+          hatOsc.frequency.setValueAtTime(6000 + Math.random() * 2000, now);
+          hatGain.gain.setValueAtTime(0.18, now);
+          hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          hatOsc.connect(hatGain);
+          hatGain.connect(this.bgmGain);
+          hatOsc.start(now);
+          hatOsc.stop(now + 0.04);
         }
       } catch {
         // Fallback
@@ -373,6 +413,78 @@ class SoundSystem {
     }
   }
 
+  // Secondary explosion burst during boss death sequence
+  public playBossExplosionCrunch(): void {
+    if (this.muted) return;
+    const ctx = this.initContext();
+    if (!ctx || ctx.state === 'suspended') return;
+
+    try {
+      const now = ctx.currentTime;
+
+      // Low frequency crunch noise
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sawtooth';
+      const startPitch = 160 + Math.random() * 80;
+      osc.frequency.setValueAtTime(startPitch, now);
+      osc.frequency.exponentialRampToValueAtTime(30, now + 0.28);
+
+      gain.gain.setValueAtTime(0.55, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain || ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.28);
+    } catch {
+      // Audio fallback silent
+    }
+  }
+
+  // Giant Mega Detonation when boss fully shatters
+  public playMegaBossDetonation(): void {
+    if (this.muted) return;
+    const ctx = this.initContext();
+    if (!ctx || ctx.state === 'suspended') return;
+
+    try {
+      const now = ctx.currentTime;
+
+      // 1. Deep Sub-bass Rumbling Shockwave
+      const subOsc = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      subOsc.type = 'triangle';
+      subOsc.frequency.setValueAtTime(120, now);
+      subOsc.frequency.exponentialRampToValueAtTime(25, now + 0.8);
+
+      subGain.gain.setValueAtTime(0.75, now);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+      subOsc.connect(subGain);
+      subGain.connect(this.masterGain || ctx.destination);
+      subOsc.start(now);
+      subOsc.stop(now + 0.8);
+
+      // 2. High crunch crackle
+      const crackleOsc = ctx.createOscillator();
+      const crackleGain = ctx.createGain();
+      crackleOsc.type = 'sawtooth';
+      crackleOsc.frequency.setValueAtTime(320, now);
+      crackleOsc.frequency.exponentialRampToValueAtTime(40, now + 0.45);
+
+      crackleGain.gain.setValueAtTime(0.65, now);
+      crackleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      crackleOsc.connect(crackleGain);
+      crackleGain.connect(this.masterGain || ctx.destination);
+      crackleOsc.start(now);
+      crackleOsc.stop(now + 0.45);
+    } catch {
+      // Audio fallback silent
+    }
+  }
+
   // Boss defeated fanfare
   public playBossDefeated(): void {
     if (this.muted) return;
@@ -381,25 +493,25 @@ class SoundSystem {
 
     try {
       const now = ctx.currentTime;
-      const notes = [440, 554.37, 659.25, 880, 1108.73];
+      const notes = [440, 554.37, 659.25, 880, 1108.73, 1318.5];
 
       notes.forEach((freq, idx) => {
         if (!ctx) return;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        const startTime = now + idx * 0.08;
+        const startTime = now + idx * 0.09;
 
-        osc.type = 'sine';
+        osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, startTime);
 
-        gain.gain.setValueAtTime(0.38, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.38);
+        gain.gain.setValueAtTime(0.55, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.42);
 
         osc.connect(gain);
         gain.connect(this.masterGain || ctx.destination);
 
         osc.start(startTime);
-        osc.stop(startTime + 0.38);
+        osc.stop(startTime + 0.42);
       });
     } catch {
       // Audio fallback silent
