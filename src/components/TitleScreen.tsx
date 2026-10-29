@@ -4,6 +4,7 @@ import {
   Play, BookOpen, Trophy, Crosshair, 
   Skull, Zap, Sparkles 
 } from 'lucide-react';
+import { sound } from '../utils/sound';
 
 interface TitleScreenProps {
   decks: CollocationDeck[];
@@ -173,7 +174,10 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         {/* Big Launch Mission Action */}
         <div className="mt-8 flex flex-col sm:flex-row items-center gap-4 w-full max-w-md">
           <button
-            onClick={() => onStartGame(selectedMode)}
+            onClick={() => {
+              sound.unlockAudio();
+              onStartGame(selectedMode);
+            }}
             className="w-full py-4 bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 font-black tracking-widest text-sm uppercase rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 font-arcade"
           >
             <Play className="w-5 h-5 fill-slate-950" />
@@ -188,6 +192,16 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
             Teacher Studio
           </button>
         </div>
+
+        {/* Audio Test / Enable Button */}
+        <button
+          onClick={() => sound.testAudio()}
+          className="mt-4 flex items-center gap-2 px-3.5 py-1.5 bg-slate-900/80 hover:bg-slate-800 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 rounded-full text-xs font-semibold transition-all shadow-sm"
+          title="Click to test sound effects and start background music"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <span>Tap to Test Audio / Start Synth Music 🎵</span>
+        </button>
 
         {/* High Score Hall of Fame */}
         {highScores.length > 0 && (

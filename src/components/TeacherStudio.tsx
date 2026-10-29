@@ -338,31 +338,31 @@ export const TeacherStudio: React.FC<TeacherStudioProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 pt-20">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 pt-6 sm:pt-8">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-cyan-900 border border-cyan-400 text-cyan-100 px-4 py-2 rounded-xl shadow-xl flex items-center gap-2 animate-in fade-in">
+        <div className="fixed top-6 right-6 z-50 bg-cyan-900 border border-cyan-400 text-cyan-100 px-4 py-2 rounded-xl shadow-xl flex items-center gap-2 animate-in fade-in">
           <Check className="w-4 h-4 text-cyan-300" />
           <span className="text-xs font-semibold">{toastMessage}</span>
         </div>
       )}
 
       {/* Header Bar */}
-      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800 relative z-10">
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500 hover:text-cyan-300 transition-colors"
+            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500 hover:text-cyan-300 transition-colors shrink-0"
             title="Return to Game"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-wide flex items-center gap-2 font-arcade">
-              <BookMarked className="w-6 h-6 text-cyan-400" />
+              <BookMarked className="w-6 h-6 text-cyan-400 shrink-0" />
               TEACHER CUSTOMIZATION & CLASSROOM SUITE
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 mt-0.5">
               Create and share custom collocation decks with students, and analyze their homework results.
             </p>
           </div>

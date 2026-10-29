@@ -36,6 +36,10 @@ export const HUD: React.FC<HUDProps> = ({
     gameState === 'BOSS_BATTLE' ||
     gameState === 'ROUND_CLEAR';
 
+  if (gameState === 'TEACHER_STUDIO') {
+    return null;
+  }
+
   return (
     <>
       <header className="fixed top-0 left-0 right-0 h-16 z-25 bg-slate-950/80 border-b border-cyan-900/50 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between gap-4 select-none">
@@ -159,15 +163,13 @@ export const HUD: React.FC<HUDProps> = ({
           )}
 
           {/* Teacher Studio Button */}
-          {gameState !== 'TEACHER_STUDIO' && (
-            <button
-              onClick={onOpenTeacherStudio}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-cyan-300 bg-cyan-950/60 border border-cyan-800/80 hover:bg-cyan-900/80 hover:border-cyan-500 transition-colors shadow-sm"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Teacher Studio</span>
-            </button>
-          )}
+          <button
+            onClick={onOpenTeacherStudio}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-cyan-300 bg-cyan-950/60 border border-cyan-800/80 hover:bg-cyan-900/80 hover:border-cyan-500 transition-colors shadow-sm"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Teacher Studio</span>
+          </button>
         </div>
       </header>
 

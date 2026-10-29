@@ -90,6 +90,11 @@ export default function App() {
 
   // Flying Boss State
   const [bossState, setBossState] = useState<BossState | null>(null);
+  const bossStateRef = useRef<BossState | null>(null);
+
+  useEffect(() => {
+    bossStateRef.current = bossState;
+  }, [bossState]);
 
   const [feedback, setFeedback] = useState<EducationalFeedback | null>(null);
 
@@ -249,7 +254,9 @@ export default function App() {
       vx: 0.16,
       vy: 0.06,
       flyAngle: 0,
+      isFiring: false,
     };
+    bossStateRef.current = newBoss;
     setBossState(newBoss);
     setUnfoundTargets([...newBoss.validTargetsNeeded]);
     setFlyingWords([]);
@@ -268,13 +275,11 @@ export default function App() {
   const spawnWord = useCallback(() => {
     if (gameState !== 'PLAYING' && gameState !== 'BOSS_BATTLE') return;
 
-    const origins: WordOrigin[] = ['TOP', 'LEFT', 'RIGHT'];
-    const origin = origins[Math.floor(Math.random() * origins.length)];
-
-    const isBoss = gameState === 'BOSS_BATTLE' && bossState !== null;
-    const currentBaseWord = isBoss ? bossState.baseWord : currentRound.baseWord;
-    const availableTargets = isBoss ? bossState.validTargetsNeeded : unfoundTargets;
-    const availableDistractors = isBoss ? bossState.distractors : currentRound.distractors;
+    const isBoss = gameState === 'BOSS_BATTLE' && bossStateRef.current !== null;
+    const currentBoss = bossStateRef.current;
+    const currentBaseWord = isBoss && currentBoss ? currentBoss.baseWord : currentRound.baseWord;
+    const availableTargets = isBoss && currentBoss ? currentBoss.validTargetsNeeded : unfoundTargets;
+    const availableDistractors = isBoss && currentBoss ? currentBoss.distractors : currentRound.distractors;
 
     const shouldSpawnCorrect = availableTargets.length > 0 && (Math.random() < 0.55 || availableDistractors.length === 0);
 
@@ -293,30 +298,52 @@ export default function App() {
     }
 
     const speedMultiplier = 1 + (stats.level - 1) * 0.22;
+    let origin: WordOrigin;
     let x = 50;
     let y = 15;
     let vx = 0;
     let vy = 0;
 
-    switch (origin) {
-      case 'TOP':
-        x = Math.random() * 70 + 15;
-        y = 12;
-        vy = (Math.random() * 0.12 + 0.14) * speedMultiplier;
-        vx = (Math.random() - 0.5) * 0.08 * speedMultiplier;
-        break;
-      case 'LEFT':
-        x = 5;
-        y = Math.random() * 45 + 18;
-        vx = (Math.random() * 0.14 + 0.15) * speedMultiplier;
-        vy = (Math.random() * 0.08 - 0.02) * speedMultiplier;
-        break;
-      case 'RIGHT':
-        x = 95;
-        y = Math.random() * 45 + 18;
-        vx = -(Math.random() * 0.14 + 0.15) * speedMultiplier;
-        vy = (Math.random() * 0.08 - 0.02) * speedMultiplier;
-        break;
+    if (isBoss && currentBoss) {
+      // The Boss Monster fires words directly from its maw/mouth!
+      origin = 'BOSS';
+      x = currentBoss.x;
+      y = currentBoss.y + 7;
+      // Disperse downward in a cone toward the player's station
+      vx = (Math.random() - 0.5) * 0.28 * speedMultiplier;
+      vy = (Math.random() * 0.12 + 0.16) * speedMultiplier;
+
+      // Pulse mouth plasma flare on monster sprite
+      setBossState((prev) => (prev ? { ...prev, isFiring: true } : null));
+      setTimeout(() => {
+        setBossState((prev) => (prev ? { ...prev, isFiring: false } : null));
+      }, 260);
+
+      sound.playLaser();
+    } else {
+      const origins: WordOrigin[] = ['TOP', 'LEFT', 'RIGHT'];
+      origin = origins[Math.floor(Math.random() * origins.length)];
+
+      switch (origin) {
+        case 'TOP':
+          x = Math.random() * 70 + 15;
+          y = 12;
+          vy = (Math.random() * 0.12 + 0.14) * speedMultiplier;
+          vx = (Math.random() - 0.5) * 0.08 * speedMultiplier;
+          break;
+        case 'LEFT':
+          x = 5;
+          y = Math.random() * 45 + 18;
+          vx = (Math.random() * 0.14 + 0.15) * speedMultiplier;
+          vy = (Math.random() * 0.08 - 0.02) * speedMultiplier;
+          break;
+        case 'RIGHT':
+          x = 95;
+          y = Math.random() * 45 + 18;
+          vx = -(Math.random() * 0.14 + 0.15) * speedMultiplier;
+          vy = (Math.random() * 0.08 - 0.02) * speedMultiplier;
+          break;
+      }
     }
 
     const newWord: FlyingWord = {
@@ -337,7 +364,7 @@ export default function App() {
       if (prev.length >= maxConcurrent) return prev;
       return [...prev, newWord];
     });
-  }, [gameState, bossState, currentRound, unfoundTargets, stats.level]);
+  }, [gameState, currentRound, unfoundTargets, stats.level]);
 
   // Main 60fps Movement & Boss Flight Loop
   useEffect(() => {
@@ -356,7 +383,7 @@ export default function App() {
             };
           })
           .filter((w) => {
-            const isInside = w.x >= 0 && w.x <= 100 && w.y <= 84;
+            const isInside = w.x >= -5 && w.x <= 105 && w.y <= 85;
             return isInside || w.isHit;
           });
       });
@@ -381,15 +408,29 @@ export default function App() {
         const time = Date.now() / 800;
         newY = 22 + Math.sin(time) * 6;
 
-        return {
+        const updated: BossState = {
           ...prevBoss,
           x: newX,
           y: newY,
           vx: newVx,
           flyAngle: Math.sin(time * 0.8) * 8,
         };
+        bossStateRef.current = updated;
+        return updated;
       });
     }, 16);
+
+    return () => {
+      clearInterval(moveInterval);
+    };
+  }, [gameState]);
+
+  // Word Spawning Timer Loop (independent of 60fps animation)
+  useEffect(() => {
+    if (gameState !== 'PLAYING' && gameState !== 'BOSS_BATTLE') return;
+
+    // Immediately trigger a word on round/boss start
+    spawnWord();
 
     const spawnRate = Math.max(1400, 2600 - stats.level * 250);
     const spawnInterval = setInterval(() => {
@@ -397,7 +438,6 @@ export default function App() {
     }, spawnRate);
 
     return () => {
-      clearInterval(moveInterval);
       clearInterval(spawnInterval);
     };
   }, [gameState, stats.level, spawnWord]);
@@ -549,11 +589,13 @@ export default function App() {
         }
 
         const newHp = bossState.currentHp - 1;
-        setBossState({
+        const updatedBoss: BossState = {
           ...bossState,
           currentHp: newHp,
           hitsTaken: bossState.hitsTaken + 1,
-        });
+        };
+        bossStateRef.current = updatedBoss;
+        setBossState(updatedBoss);
 
         if (newHp <= 0) {
           sound.playBossDefeated();

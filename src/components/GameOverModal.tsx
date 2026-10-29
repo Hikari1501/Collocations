@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PlayerStats, CollocationDeck } from '../types/game';
 import { 
   RotateCcw, Trophy, Award, BookOpen, AlertTriangle, 
-  CheckCircle2, Home, Mail, Copy, Check, Download, Send 
+  CheckCircle2, Home, Mail, Copy, Check, Download, Send, Loader2 
 } from 'lucide-react';
 
 interface GameOverModalProps {
@@ -28,6 +28,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   const [hasSaved, setHasSaved] = useState(false);
   const [copiedReport, setCopiedReport] = useState(false);
   const [teacherEmailInput, setTeacherEmailInput] = useState(deck.teacherEmail || '');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const totalAttempts = stats.correctHits + stats.wrongHits;
   const accuracy = totalAttempts > 0 ? Math.round((stats.correctHits / totalAttempts) * 100) : 0;
@@ -39,7 +42,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     setHasSaved(true);
   };
 
-  // Generate plain-text classroom report
   const generateReportText = () => {
     const student = playerName.trim() || 'Student';
     const dateStr = new Date().toLocaleDateString();
@@ -84,12 +86,51 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     setTimeout(() => setCopiedReport(false), 2500);
   };
 
-  const handleEmailReport = () => {
+  // Direct Async In-App Email Dispatch (Never opens blank mailto page)
+  const handleDirectEmail = async () => {
     const student = playerName.trim() || 'Student';
-    const recipient = teacherEmailInput.trim();
-    const subject = encodeURIComponent(`Collocation Game Report: ${student} - ${deck.title}`);
-    const body = encodeURIComponent(generateReportText());
-    window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
+    const email = teacherEmailInput.trim();
+    if (!email || !email.includes('@')) {
+      setEmailError('Please enter a valid teacher email address.');
+      return;
+    }
+
+    setEmailSending(true);
+    setEmailError(null);
+    setEmailSuccess(null);
+
+    try {
+      const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(email)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          _subject: `Collocation Blaster Results: ${student} - ${deck.title}`,
+          StudentName: student,
+          CurriculumDeck: `${deck.title} (${deck.level})`,
+          FinalScore: `${stats.score.toLocaleString()} pts`,
+          Accuracy: `${accuracy}%`,
+          MaxCombo: `x${stats.maxCombo}`,
+          Sector: `Level ${stats.level}`,
+          MasteredPhrases: stats.learnedCollocations.map((c) => c.phrase).join(', ') || 'None',
+          MistakesReview: stats.mistakesMade.map((m) => `${m.baseWord} + ${m.word} [Tip: ${m.tip}]`).join('; ') || 'None',
+          CompleteReport: generateReportText(),
+        }),
+      });
+
+      if (response.ok) {
+        setEmailSuccess(`Results successfully sent directly to ${email}!`);
+      } else {
+        throw new Error('Direct dispatch failed');
+      }
+    } catch {
+      handleCopyReport();
+      setEmailError(`Could not reach email service directly. Report copied to clipboard for Google Classroom!`);
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   const handleDownloadReport = () => {
@@ -171,7 +212,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             maxLength={20}
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Enter student / cadet name..."
+            placeholder="Enter student name..."
             className="flex-1 bg-slate-950 border border-cyan-500/40 text-slate-100 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-cyan-400"
           />
           {!hasSaved ? (
@@ -190,14 +231,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           )}
         </form>
 
-        {/* Teacher Report Dispatch Section */}
+        {/* Teacher Report Dispatch Section (Direct Sending) */}
         <div className="mb-6 bg-slate-950/90 border border-cyan-500/40 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
               <Send className="w-3.5 h-3.5 text-cyan-400" />
-              Send Results to Teacher
+              Send Results Directly to Teacher
             </span>
-            <span className="text-[10px] text-slate-400">Classroom Homework Submission</span>
+            <span className="text-[10px] text-slate-400">Direct In-App Delivery</span>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 mb-3">
@@ -209,13 +250,33 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               className="flex-1 bg-slate-900 border border-slate-700 text-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-400"
             />
             <button
-              onClick={handleEmailReport}
-              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shadow-sm"
+              onClick={handleDirectEmail}
+              disabled={emailSending}
+              className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md whitespace-nowrap"
             >
-              <Mail className="w-3.5 h-3.5" />
-              Email Report
+              {emailSending ? (
+                <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+              ) : (
+                <Mail className="w-4 h-4 text-slate-950" />
+              )}
+              {emailSending ? 'Sending...' : 'Send Directly'}
             </button>
           </div>
+
+          {/* Success or Error Feedback */}
+          {emailSuccess && (
+            <div className="mb-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/70 text-emerald-200 text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{emailSuccess}</span>
+            </div>
+          )}
+
+          {emailError && (
+            <div className="mb-3 p-2.5 rounded-xl bg-amber-950/80 border border-amber-500/70 text-amber-200 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>{emailError}</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <button

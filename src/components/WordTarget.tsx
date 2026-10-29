@@ -37,6 +37,8 @@ export const WordTarget: React.FC<WordTargetProps> = ({ word, onShoot }) => {
         return 'before:absolute before:-left-1.5 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-3 before:bg-cyan-400/60 before:rounded-l-full before:blur-[1px]';
       case 'RIGHT':
         return 'before:absolute before:-right-1.5 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-3 before:bg-cyan-400/60 before:rounded-r-full before:blur-[1px]';
+      case 'BOSS':
+        return 'before:absolute before:-top-2 before:left-1/2 before:-translate-x-1/2 before:w-4 before:h-2 before:bg-rose-500/80 before:rounded-t-full before:blur-[2px] shadow-[0_0_15px_rgba(244,63,94,0.4)]';
     }
   };
 

@@ -37,7 +37,7 @@ export interface CollocationDeck {
   classCode?: string;
 }
 
-export type WordOrigin = 'TOP' | 'LEFT' | 'RIGHT';
+export type WordOrigin = 'TOP' | 'LEFT' | 'RIGHT' | 'BOSS';
 
 export interface FlyingWord {
   id: string;
@@ -71,6 +71,7 @@ export interface BossState {
   vy: number;
   flyAngle: number;
   isHitFlash?: boolean;
+  isFiring?: boolean;
 }
 
 export interface LaserBeam {
