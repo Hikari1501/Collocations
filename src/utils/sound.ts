@@ -1,17 +1,27 @@
-// Procedural audio synthesizer using Web Audio API
+// Procedural audio & BGM synthesizer using Web Audio API
 // 100% self-contained, zero external audio assets required.
+
+export type BGMTrack = 'title' | 'gameplay' | 'boss';
 
 class SoundSystem {
   private ctx: AudioContext | null = null;
   private muted: boolean = false;
+  private musicEnabled: boolean = true;
+  private currentTrack: BGMTrack | null = null;
+  private bgmIntervalId: number | null = null;
+  private bgmGain: GainNode | null = null;
+  private noteStep: number = 0;
 
   constructor() {
-    // Check localStorage for audio preference safely
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('collocation_blaster_muted');
-        if (saved !== null) {
-          this.muted = saved === 'true';
+        const savedMute = localStorage.getItem('collocation_blaster_muted');
+        if (savedMute !== null) {
+          this.muted = savedMute === 'true';
+        }
+        const savedMusic = localStorage.getItem('collocation_blaster_music');
+        if (savedMusic !== null) {
+          this.musicEnabled = savedMusic === 'true';
         }
       } catch {
         // Storage restricted in sandbox/iframe
@@ -22,7 +32,9 @@ class SoundSystem {
   private initContext() {
     if (!this.ctx && typeof window !== 'undefined') {
       try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         if (AudioCtx) {
           this.ctx = new AudioCtx();
         }
@@ -43,6 +55,10 @@ class SoundSystem {
     return this.muted;
   }
 
+  public isMusicOn(): boolean {
+    return this.musicEnabled && !this.muted;
+  }
+
   public toggleMute(): boolean {
     this.muted = !this.muted;
     if (typeof window !== 'undefined') {
@@ -52,8 +68,146 @@ class SoundSystem {
         // Ignore
       }
     }
+
+    if (this.muted) {
+      this.stopMusic();
+    } else if (this.musicEnabled && this.currentTrack) {
+      this.startMusic(this.currentTrack);
+    }
     return this.muted;
   }
+
+  public toggleMusic(): boolean {
+    this.musicEnabled = !this.musicEnabled;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('collocation_blaster_music', String(this.musicEnabled));
+      } catch {
+        // Ignore
+      }
+    }
+
+    if (!this.musicEnabled || this.muted) {
+      this.stopMusic();
+    } else if (this.currentTrack) {
+      this.startMusic(this.currentTrack);
+    }
+    return this.musicEnabled;
+  }
+
+  // --- Background Music (BGM) Engine ---
+  public startMusic(track: BGMTrack): void {
+    this.currentTrack = track;
+    if (this.muted || !this.musicEnabled) return;
+
+    this.initContext();
+    if (!this.ctx) return;
+
+    // Stop any existing loop
+    this.stopMusic(false);
+
+    // Create main BGM gain node
+    this.bgmGain = this.ctx.createGain();
+    this.bgmGain.gain.setValueAtTime(0.06, this.ctx.currentTime); // gentle background level
+    this.bgmGain.connect(this.ctx.destination);
+
+    // Track melody and bassline patterns (frequencies in Hz)
+    // Gameplay: A-minor / D-minor synth driving arpeggio (125 BPM -> 120ms step)
+    // Title: Dreamy C-maj7 / F-maj7 ambient pulse (180ms step)
+    // Boss: Fast aggressive E-phrygian driving attack (90ms step)
+    const patterns: Record<BGMTrack, { notes: number[]; bass: number[]; stepTime: number }> = {
+      title: {
+        notes: [261.63, 329.63, 392.0, 493.88, 392.0, 329.63, 220.0, 329.63, 392.0, 440.0, 392.0, 329.63],
+        bass: [130.81, 130.81, 110.0, 110.0],
+        stepTime: 220,
+      },
+      gameplay: {
+        notes: [220.0, 261.63, 329.63, 440.0, 392.0, 329.63, 261.63, 293.66, 349.23, 440.0, 523.25, 440.0, 349.23, 293.66],
+        bass: [110.0, 110.0, 146.83, 146.83, 110.0, 110.0, 164.81, 164.81],
+        stepTime: 140,
+      },
+      boss: {
+        notes: [164.81, 174.61, 196.0, 220.0, 246.94, 220.0, 196.0, 174.61, 164.81, 329.63, 349.23, 392.0],
+        bass: [82.41, 82.41, 87.31, 87.31, 82.41, 82.41, 98.0, 98.0],
+        stepTime: 105,
+      },
+    };
+
+    const pattern = patterns[track];
+    this.noteStep = 0;
+
+    const tick = () => {
+      if (!this.ctx || !this.bgmGain || this.muted || !this.musicEnabled) return;
+
+      const now = this.ctx.currentTime;
+      const noteFreq = pattern.notes[this.noteStep % pattern.notes.length];
+      const bassFreq = pattern.bass[Math.floor(this.noteStep / 2) % pattern.bass.length];
+
+      // Play lead arpeggio note (soft triangle/sine)
+      try {
+        const leadOsc = this.ctx.createOscillator();
+        const leadGain = this.ctx.createGain();
+
+        leadOsc.type = track === 'boss' ? 'sawtooth' : 'triangle';
+        leadOsc.frequency.setValueAtTime(noteFreq, now);
+
+        leadGain.gain.setValueAtTime(track === 'boss' ? 0.05 : 0.08, now);
+        leadGain.gain.exponentialRampToValueAtTime(0.001, now + pattern.stepTime / 1000);
+
+        leadOsc.connect(leadGain);
+        leadGain.connect(this.bgmGain);
+
+        leadOsc.start(now);
+        leadOsc.stop(now + pattern.stepTime / 1000);
+
+        // Every 2 steps play pulsing bass
+        if (this.noteStep % 2 === 0) {
+          const bassOsc = this.ctx.createOscillator();
+          const bassGain = this.ctx.createGain();
+
+          bassOsc.type = 'sine';
+          bassOsc.frequency.setValueAtTime(bassFreq, now);
+
+          bassGain.gain.setValueAtTime(0.12, now);
+          bassGain.gain.exponentialRampToValueAtTime(0.001, now + (pattern.stepTime * 2) / 1000);
+
+          bassOsc.connect(bassGain);
+          bassGain.connect(this.bgmGain);
+
+          bassOsc.start(now);
+          bassOsc.stop(now + (pattern.stepTime * 2) / 1000);
+        }
+      } catch {
+        // Fallback
+      }
+
+      this.noteStep++;
+    };
+
+    // Run interval
+    this.bgmIntervalId = window.setInterval(tick, pattern.stepTime);
+    tick();
+  }
+
+  public stopMusic(clearTrack: boolean = true): void {
+    if (this.bgmIntervalId !== null) {
+      clearInterval(this.bgmIntervalId);
+      this.bgmIntervalId = null;
+    }
+    if (this.bgmGain) {
+      try {
+        this.bgmGain.disconnect();
+      } catch {
+        // Ignore
+      }
+      this.bgmGain = null;
+    }
+    if (clearTrack) {
+      this.currentTrack = null;
+    }
+  }
+
+  // --- Sound Effects ---
 
   // Laser shot sound (pew!)
   public playLaser(): void {

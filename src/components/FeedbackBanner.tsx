@@ -12,7 +12,7 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({ feedback }) => {
   const isCorrect = feedback.type === 'CORRECT' || feedback.type === 'BOSS_HIT';
 
   return (
-    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-30 pointer-events-none select-none max-w-lg w-[90%] px-2">
+    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none select-none max-w-lg w-[90%] px-2">
       <div
         className={`px-4 py-3 rounded-2xl border shadow-2xl backdrop-blur-md transition-all duration-200 transform animate-in fade-in slide-in-from-top-3 flex items-start gap-3 ${
           isCorrect
@@ -20,7 +20,6 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({ feedback }) => {
             : 'bg-rose-950/95 border-rose-500/90 text-rose-100 shadow-[0_0_25px_rgba(239,68,68,0.4)] animate-shake'
         }`}
       >
-        {/* Icon */}
         <div className="mt-0.5 shrink-0">
           {isCorrect ? (
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
@@ -29,7 +28,6 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({ feedback }) => {
           )}
         </div>
 
-        {/* Content */}
         <div className="flex flex-col text-left">
           <div className="flex items-center gap-2">
             <span

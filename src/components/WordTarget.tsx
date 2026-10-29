@@ -19,7 +19,6 @@ export const WordTarget: React.FC<WordTargetProps> = ({ word, onShoot }) => {
     }
   };
 
-  // Determine border and glow colors based on hit state
   let stateClasses = 'bg-slate-900/85 border-slate-700/80 text-slate-100 hover:border-cyan-400 hover:text-cyan-200 shadow-[0_4px_16px_rgba(0,0,0,0.5)]';
 
   if (word.isHit) {
@@ -30,7 +29,6 @@ export const WordTarget: React.FC<WordTargetProps> = ({ word, onShoot }) => {
     }
   }
 
-  // Directional thruster indicators based on origin
   const getThrusterStyle = () => {
     switch (word.origin) {
       case 'TOP':
@@ -57,10 +55,7 @@ export const WordTarget: React.FC<WordTargetProps> = ({ word, onShoot }) => {
         disabled={word.isHit}
         className={`group relative px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl border-2 font-bold text-sm sm:text-base tracking-wide flex items-center gap-2 cursor-crosshair transition-all active:scale-95 backdrop-blur-md ${stateClasses} ${getThrusterStyle()}`}
       >
-        {/* Subtle Targeting Reticle on Hover */}
         <Crosshair className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 group-hover:text-cyan-400 transition-opacity" />
-
-        {/* Word Text */}
         <span className="whitespace-nowrap font-semibold">
           {word.text}
         </span>

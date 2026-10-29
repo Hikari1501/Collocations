@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { GameMode, CollocationDeck, HighScoreRecord } from '../types/game';
 import { 
-  Play, BookOpen, Trophy, Shield, Crosshair, 
-  Flame, Skull, Zap, Sparkles 
+  Play, BookOpen, Trophy, Crosshair, 
+  Skull, Zap, Sparkles 
 } from 'lucide-react';
 
 interface TitleScreenProps {
@@ -34,14 +34,14 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
     {
       id: 'ADVENTURE',
       title: 'Adventure Campaign',
-      description: 'Progression through waves with increasing speed, distractor density, and multi-hit Boss Battles!',
+      description: 'Progression through waves with increasing speed, distractor density, and flying Boss Battles!',
       icon: <Sparkles className="w-5 h-5 text-cyan-400" />,
       tag: 'Recommended',
     },
     {
       id: 'BOSS_RUSH',
       title: 'Titan Boss Battle',
-      description: 'Challenge the multi-hit Collocation Titans directly! Test your precision under pressure.',
+      description: 'Challenge the flying Collocation Titans directly! Test your precision under high-speed pressure.',
       icon: <Skull className="w-5 h-5 text-rose-400" />,
       tag: 'Multi-Hit Boss',
     },
@@ -74,7 +74,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
 
         <p className="mt-3 text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
           Aim your turret and blast flying words that form natural English collocations.
-          Featuring instant educational tips, multi-hit Boss Titans, and teacher curriculum control.
+          Featuring instant educational tips, flying Boss Titans, and teacher curriculum control.
         </p>
 
         {/* Quick Instructions Visual Pills */}
@@ -105,7 +105,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
             </div>
             <div>
               <div className="text-xs font-bold text-white uppercase">Defeat Boss Titans</div>
-              <div className="text-[11px] text-slate-400">Bosses take multiple hits to destroy!</div>
+              <div className="text-[11px] text-slate-400">Flying bosses take multiple hits to destroy!</div>
             </div>
           </div>
         </div>

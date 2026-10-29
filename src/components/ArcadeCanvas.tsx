@@ -65,7 +65,6 @@ export const ArcadeCanvas: React.FC<ArcadeCanvasProps> = ({ laserBeams, onRemove
     let animId: number;
 
     const render = () => {
-      // Resize canvas to match display size
       if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;

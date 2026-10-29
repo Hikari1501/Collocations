@@ -16,29 +16,29 @@ import { HUD } from './components/HUD';
 import { ArcadeCanvas } from './components/ArcadeCanvas';
 import { TurretStation } from './components/TurretStation';
 import { WordTarget } from './components/WordTarget';
-import { BossBattleDisplay } from './components/BossBattleDisplay';
+import { BossShip } from './components/BossShip';
 import { FeedbackBanner } from './components/FeedbackBanner';
 import { TitleScreen } from './components/TitleScreen';
 import { GameOverModal } from './components/GameOverModal';
 import { TeacherStudio } from './components/TeacherStudio';
-import { Sparkles, Trophy, Skull } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 export default function App() {
-  // Game states
   const [gameState, setGameState] = useState<GameState>('TITLE');
   const [gameMode, setGameMode] = useState<GameMode>('ADVENTURE');
   const [isMuted, setIsMuted] = useState<boolean>(sound.isMuted());
+  const [isMusicOn, setIsMusicOn] = useState<boolean>(sound.isMusicOn());
 
   // Decks & Curriculum
   const [decks, setDecks] = useState<CollocationDeck[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('collocation_blaster_decks');
-      if (saved) {
-        try {
+      try {
+        const saved = localStorage.getItem('collocation_blaster_decks');
+        if (saved) {
           return JSON.parse(saved);
-        } catch {
-          // fallback to defaults
         }
+      } catch {
+        // fallback
       }
     }
     return DEFAULT_DECKS;
@@ -46,29 +46,53 @@ export default function App() {
 
   const [activeDeckId, setActiveDeckId] = useState<string>(decks[0]?.id || 'deck-everyday-verbs');
 
-  // Active round pointers
+  // Check URL on mount for shared teacher deck (#deck=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const hash = window.location.hash;
+      if (hash && hash.includes('#deck=')) {
+        const encoded = hash.split('#deck=')[1];
+        if (encoded) {
+          const jsonStr = decodeURIComponent(escape(atob(encoded)));
+          const sharedDeck: CollocationDeck = JSON.parse(jsonStr);
+          if (sharedDeck && sharedDeck.id && sharedDeck.rounds?.length) {
+            setDecks((prev) => {
+              const exists = prev.some((d) => d.id === sharedDeck.id);
+              if (exists) return prev.map((d) => (d.id === sharedDeck.id ? sharedDeck : d));
+              return [sharedDeck, ...prev];
+            });
+            setActiveDeckId(sharedDeck.id);
+            showFeedback(
+              'LEVEL_UP',
+              'TEACHER DECK LOADED!',
+              `Loaded shared curriculum: "${sharedDeck.title}". Good luck!`,
+              sharedDeck.rounds[0]?.baseWord || '',
+              ''
+            );
+          }
+        }
+      }
+    } catch {
+      // Ignore if malformed
+    }
+  }, []);
+
   const [currentRoundIndex, setCurrentRoundIndex] = useState<number>(0);
   const activeDeck = decks.find((d) => d.id === activeDeckId) || decks[0];
   const currentRound: CollocationRound = activeDeck.rounds[currentRoundIndex] || activeDeck.rounds[0];
 
-  // Remaining targets in current round
   const [unfoundTargets, setUnfoundTargets] = useState<string[]>([]);
-
-  // Flying words in current flight arena
   const [flyingWords, setFlyingWords] = useState<FlyingWord[]>([]);
-
-  // Visual effects: laser beams & screen shake
   const [laserBeams, setLaserBeams] = useState<LaserBeam[]>([]);
   const [isScreenShaking, setIsScreenShaking] = useState<boolean>(false);
   const [bossHitFlash, setBossHitFlash] = useState<boolean>(false);
 
-  // Boss Battle state
+  // Flying Boss State
   const [bossState, setBossState] = useState<BossState | null>(null);
 
-  // Instant educational feedback toast
   const [feedback, setFeedback] = useState<EducationalFeedback | null>(null);
 
-  // Player Stats
   const [stats, setStats] = useState<PlayerStats>({
     score: 0,
     combo: 1,
@@ -84,16 +108,15 @@ export default function App() {
     mistakesMade: [],
   });
 
-  // High Scores leaderboard
   const [highScores, setHighScores] = useState<HighScoreRecord[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('collocation_blaster_highscores');
-      if (saved) {
-        try {
+      try {
+        const saved = localStorage.getItem('collocation_blaster_highscores');
+        if (saved) {
           return JSON.parse(saved);
-        } catch {
-          // fallback
         }
+      } catch {
+        // fallback
       }
     }
     return [
@@ -103,24 +126,42 @@ export default function App() {
     ];
   });
 
-  // Save decks to localStorage whenever updated
+  // Save decks to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('collocation_blaster_decks', JSON.stringify(decks));
       } catch {
-        // Ignore if storage is blocked
+        // storage restricted
       }
     }
   }, [decks]);
 
-  // Audio mute toggle handler
+  // Audio and Music Handlers
   const handleToggleMute = () => {
     const next = sound.toggleMute();
     setIsMuted(next);
+    setIsMusicOn(sound.isMusicOn());
   };
 
-  // Helper to show educational feedback with auto-dismiss
+  const handleToggleMusic = () => {
+    const next = sound.toggleMusic();
+    setIsMusicOn(next && !isMuted);
+  };
+
+  // Synchronize Background Music with Game State
+  useEffect(() => {
+    if (gameState === 'TITLE') {
+      sound.startMusic('title');
+    } else if (gameState === 'PLAYING') {
+      sound.startMusic('gameplay');
+    } else if (gameState === 'BOSS_BATTLE') {
+      sound.startMusic('boss');
+    } else if (gameState === 'PAUSED' || gameState === 'GAME_OVER' || gameState === 'VICTORY' || gameState === 'TEACHER_STUDIO') {
+      sound.stopMusic(false);
+    }
+  }, [gameState]);
+
   const showFeedback = useCallback((
     type: 'CORRECT' | 'WRONG' | 'BOSS_HIT' | 'LEVEL_UP',
     title: string,
@@ -140,7 +181,6 @@ export default function App() {
     setFeedback(newFeedback);
   }, []);
 
-  // Clear feedback after 3.2 seconds
   useEffect(() => {
     if (!feedback) return;
     const timer = setTimeout(() => {
@@ -149,7 +189,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [feedback]);
 
-  // Start or restart a game
+  // Start Game
   const handleStartGame = (mode: GameMode = 'ADVENTURE') => {
     setGameMode(mode);
     setStats({
@@ -172,13 +212,21 @@ export default function App() {
     setFeedback(null);
 
     if (mode === 'BOSS_RUSH') {
-      // Start directly on Boss Titan
       initiateBossBattle(0);
     } else {
       setBossState(null);
       setCurrentRoundIndex(0);
       initiateRound(activeDeck.rounds[0] || DEFAULT_DECKS[0].rounds[0]);
     }
+  };
+
+  // Quit / Abandon current level while playing
+  const handleQuitMission = () => {
+    setFlyingWords([]);
+    setLaserBeams([]);
+    setBossState(null);
+    setGameState('TITLE');
+    sound.startMusic('title');
   };
 
   // Initiate normal round
@@ -189,13 +237,18 @@ export default function App() {
     setGameState('PLAYING');
   };
 
-  // Initiate Boss Battle
+  // Initiate Boss Battle with flying coordinates
   const initiateBossBattle = (bossIndex: number = 0) => {
     const bossTemplate = BOSS_ENCOUNTERS[bossIndex % BOSS_ENCOUNTERS.length];
     const newBoss: BossState = {
       ...bossTemplate,
       currentHp: bossTemplate.maxHp,
       hitsTaken: 0,
+      x: 50,
+      y: 22,
+      vx: 0.16,
+      vy: 0.06,
+      flyAngle: 0,
     };
     setBossState(newBoss);
     setUnfoundTargets([...newBoss.validTargetsNeeded]);
@@ -204,8 +257,8 @@ export default function App() {
 
     showFeedback(
       'BOSS_HIT',
-      'WARNING: BOSS APPROACHING!',
-      `Defeat ${newBoss.name}! Shoot valid collocations for "${newBoss.baseWord}" to breach shields!`,
+      'WARNING: TITAN VESSEL APPROACHING!',
+      `Shoot valid collocations for "${newBoss.baseWord}" to breach ${newBoss.name}'s flight shields!`,
       newBoss.baseWord,
       ''
     );
@@ -215,7 +268,6 @@ export default function App() {
   const spawnWord = useCallback(() => {
     if (gameState !== 'PLAYING' && gameState !== 'BOSS_BATTLE') return;
 
-    // Pick origin: TOP, LEFT, or RIGHT
     const origins: WordOrigin[] = ['TOP', 'LEFT', 'RIGHT'];
     const origin = origins[Math.floor(Math.random() * origins.length)];
 
@@ -224,8 +276,6 @@ export default function App() {
     const availableTargets = isBoss ? bossState.validTargetsNeeded : unfoundTargets;
     const availableDistractors = isBoss ? bossState.distractors : currentRound.distractors;
 
-    // Determine whether to spawn a target collocation or a distractor
-    // ~55% chance of correct collocation if targets remain
     const shouldSpawnCorrect = availableTargets.length > 0 && (Math.random() < 0.55 || availableDistractors.length === 0);
 
     let text = '';
@@ -242,8 +292,6 @@ export default function App() {
       isCorrect = false;
     }
 
-    // Determine initial coordinates and velocities based on origin and level
-    // Speeds scale smoothly with level for increasing difficulty
     const speedMultiplier = 1 + (stats.level - 1) * 0.22;
     let x = 50;
     let y = 15;
@@ -252,20 +300,20 @@ export default function App() {
 
     switch (origin) {
       case 'TOP':
-        x = Math.random() * 70 + 15; // 15% to 85%
+        x = Math.random() * 70 + 15;
         y = 12;
         vy = (Math.random() * 0.12 + 0.14) * speedMultiplier;
         vx = (Math.random() - 0.5) * 0.08 * speedMultiplier;
         break;
       case 'LEFT':
         x = 5;
-        y = Math.random() * 45 + 18; // 18% to 63%
+        y = Math.random() * 45 + 18;
         vx = (Math.random() * 0.14 + 0.15) * speedMultiplier;
         vy = (Math.random() * 0.08 - 0.02) * speedMultiplier;
         break;
       case 'RIGHT':
         x = 95;
-        y = Math.random() * 45 + 18; // 18% to 63%
+        y = Math.random() * 45 + 18;
         vx = -(Math.random() * 0.14 + 0.15) * speedMultiplier;
         vy = (Math.random() * 0.08 - 0.02) * speedMultiplier;
         break;
@@ -285,23 +333,22 @@ export default function App() {
     };
 
     setFlyingWords((prev) => {
-      // Limit concurrent words on screen according to level (3 to 6 words)
       const maxConcurrent = Math.min(6, 3 + Math.floor(stats.level / 2));
       if (prev.length >= maxConcurrent) return prev;
       return [...prev, newWord];
     });
   }, [gameState, bossState, currentRound, unfoundTargets, stats.level]);
 
-  // Game loop interval for moving words and spawning
+  // Main 60fps Movement & Boss Flight Loop
   useEffect(() => {
     if (gameState !== 'PLAYING' && gameState !== 'BOSS_BATTLE') return;
 
-    // Movement loop ~60 ticks per sec
     const moveInterval = setInterval(() => {
+      // 1. Move regular flying words
       setFlyingWords((prevWords) => {
         return prevWords
           .map((w) => {
-            if (w.isHit) return w; // hit words stay momentarily for animation
+            if (w.isHit) return w;
             return {
               ...w,
               x: w.x + w.vx,
@@ -309,15 +356,41 @@ export default function App() {
             };
           })
           .filter((w) => {
-            // Keep word if inside flight boundaries (allow slight margins)
-            // If it falls too close to bottom turret (y > 85), word leaves
             const isInside = w.x >= 0 && w.x <= 100 && w.y <= 84;
             return isInside || w.isHit;
           });
       });
+
+      // 2. Animate and fly Boss Ship dynamically across arena!
+      setBossState((prevBoss) => {
+        if (!prevBoss) return null;
+        let newX = prevBoss.x + prevBoss.vx;
+        let newVx = prevBoss.vx;
+        let newY = prevBoss.y;
+
+        // Bounce smoothly off horizontal margins (20% to 80%)
+        if (newX <= 20) {
+          newX = 20;
+          newVx = Math.abs(prevBoss.vx);
+        } else if (newX >= 80) {
+          newX = 80;
+          newVx = -Math.abs(prevBoss.vx);
+        }
+
+        // Sinusoidal vertical swooping motion
+        const time = Date.now() / 800;
+        newY = 22 + Math.sin(time) * 6;
+
+        return {
+          ...prevBoss,
+          x: newX,
+          y: newY,
+          vx: newVx,
+          flyAngle: Math.sin(time * 0.8) * 8,
+        };
+      });
     }, 16);
 
-    // Spawn ticker interval
     const spawnRate = Math.max(1400, 2600 - stats.level * 250);
     const spawnInterval = setInterval(() => {
       spawnWord();
@@ -329,7 +402,7 @@ export default function App() {
     };
   }, [gameState, stats.level, spawnWord]);
 
-  // Check if unfound targets is empty in normal wave -> Trigger Round Clear
+  // Check Round Completion
   const handleCheckRoundCompletion = useCallback((updatedUnfound: string[]) => {
     if (updatedUnfound.length === 0) {
       sound.playWaveClear();
@@ -343,8 +416,6 @@ export default function App() {
 
       const nextRoundIdx = currentRoundIndex + 1;
       const nextLevel = stats.level + 1;
-
-      // Every 3rd level triggers a Boss Battle!
       const isBossTime = nextLevel % 3 === 0;
 
       setTimeout(() => {
@@ -353,7 +424,7 @@ export default function App() {
           setStats((prev) => ({
             ...prev,
             level: nextLevel,
-            score: prev.score + 500, // round clear bonus
+            score: prev.score + 500,
           }));
         } else if (nextRoundIdx < activeDeck.rounds.length) {
           setCurrentRoundIndex(nextRoundIdx);
@@ -364,7 +435,6 @@ export default function App() {
           }));
           initiateRound(activeDeck.rounds[nextRoundIdx]);
         } else {
-          // Deck finished! Victory!
           setGameState('VICTORY');
           confetti({
             particleCount: 120,
@@ -376,11 +446,10 @@ export default function App() {
     }
   }, [currentRoundIndex, activeDeck, stats.level]);
 
-  // Handle shooting a word
+  // Shoot Word Handler
   const handleShootWord = (word: FlyingWord, elementRect: DOMRect) => {
     if (gameState !== 'PLAYING' && gameState !== 'BOSS_BATTLE') return;
 
-    // Calculate turret cannon muzzle coordinates
     const anchor = document.getElementById('turret-station-anchor');
     let startX = window.innerWidth / 2;
     let startY = window.innerHeight - 80;
@@ -393,19 +462,15 @@ export default function App() {
 
     const targetX = elementRect.left + elementRect.width / 2;
     const targetY = elementRect.top + elementRect.height / 2;
-
-    // Laser beam color: Cyan for correct, Crimson for wrong
     const laserColor = word.isCorrect ? '#22d3ee' : '#ef4444';
 
-    // Play laser firing sound
     sound.playLaser();
 
-    // Add laser beam
-    const beamId = `beam-${Date.now()}`;
+    // Beam to word
     setLaserBeams((prev) => [
       ...prev,
       {
-        id: beamId,
+        id: `beam-${Date.now()}`,
         startX,
         startY,
         targetX,
@@ -418,24 +483,19 @@ export default function App() {
     const activeBaseWord = bossState ? bossState.baseWord : currentRound.baseWord;
 
     if (word.isCorrect) {
-      // Mark word as hit correct
       setFlyingWords((prev) =>
         prev.map((w) => (w.id === word.id ? { ...w, isHit: true, hitType: 'CORRECT' } : w))
       );
 
-      // Remove after brief flash
       setTimeout(() => {
         setFlyingWords((prev) => prev.filter((w) => w.id !== word.id));
       }, 200);
 
-      // Correct hit sound
       sound.playHitCorrect();
 
-      // Update remaining targets
       const remaining = unfoundTargets.filter((t) => t.toLowerCase() !== word.text.toLowerCase());
       setUnfoundTargets(remaining);
 
-      // Score calculation with combo
       const comboMult = stats.combo;
       const pointsGained = 100 * comboMult;
 
@@ -454,7 +514,6 @@ export default function App() {
         };
       });
 
-      // Show immediate educational positive reinforcement
       showFeedback(
         'CORRECT',
         'VALID COLLOCATION BLASTED!',
@@ -463,11 +522,31 @@ export default function App() {
         word.text
       );
 
-      // If in Boss Battle -> Boss takes direct multi-hit damage!
+      // If in Boss Battle: Fire an overdrive beam from turret straight into the flying BossShip!
       if (bossState) {
         sound.playBossHit();
         setBossHitFlash(true);
         setTimeout(() => setBossHitFlash(false), 250);
+
+        // Calculate boss screen position for laser impact
+        const bossEl = document.getElementById('flying-boss-ship');
+        if (bossEl) {
+          const bossRect = bossEl.getBoundingClientRect();
+          const bTargetX = bossRect.left + bossRect.width / 2;
+          const bTargetY = bossRect.top + bossRect.height / 2;
+          setLaserBeams((prev) => [
+            ...prev,
+            {
+              id: `boss-beam-${Date.now()}`,
+              startX,
+              startY,
+              targetX: bTargetX,
+              targetY: bTargetY,
+              color: '#f43f5e',
+              timestamp: Date.now() + 100,
+            },
+          ]);
+        }
 
         const newHp = bossState.currentHp - 1;
         setBossState({
@@ -477,7 +556,6 @@ export default function App() {
         });
 
         if (newHp <= 0) {
-          // Boss Defeated!
           sound.playBossDefeated();
           confetti({
             particleCount: 150,
@@ -505,7 +583,6 @@ export default function App() {
             if (gameMode === 'BOSS_RUSH') {
               setGameState('VICTORY');
             } else {
-              // Advance to next wave
               const nextRoundIdx = currentRoundIndex + 1;
               if (nextRoundIdx < activeDeck.rounds.length) {
                 setCurrentRoundIndex(nextRoundIdx);
@@ -519,29 +596,24 @@ export default function App() {
         }
       }
 
-      // If normal wave, check if round completed
       if (!bossState) {
         handleCheckRoundCompletion(remaining);
       }
     } else {
-      // INCORRECT COLLOCATION / DISTRACTOR HIT
+      // INCORRECT CHOICE / DISTRACTOR
       sound.playHitWrong();
 
-      // Screen shake animation
       setIsScreenShaking(true);
       setTimeout(() => setIsScreenShaking(false), 350);
 
-      // Mark word as wrong hit
       setFlyingWords((prev) =>
         prev.map((w) => (w.id === word.id ? { ...w, isHit: true, hitType: 'WRONG' } : w))
       );
 
-      // Remove after bounce
       setTimeout(() => {
         setFlyingWords((prev) => prev.filter((w) => w.id !== word.id));
       }, 300);
 
-      // Reset combo, deduct 1 life
       const newLives = stats.lives - 1;
       setStats((prev) => ({
         ...prev,
@@ -554,7 +626,6 @@ export default function App() {
         ],
       }));
 
-      // Instant educational feedback explaining WHY it's wrong!
       showFeedback(
         'WRONG',
         'DEFLECTOR SHIELD HIT!',
@@ -563,7 +634,6 @@ export default function App() {
         word.text
       );
 
-      // Game Over check
       if (newLives <= 0) {
         sound.playGameOver();
         setGameState('GAME_OVER');
@@ -571,12 +641,10 @@ export default function App() {
     }
   };
 
-  // Remove expired laser beam from canvas
   const handleRemoveLaser = (id: string) => {
     setLaserBeams((prev) => prev.filter((b) => b.id !== id));
   };
 
-  // Save score to local high scores
   const handleSaveHighScore = (playerName: string) => {
     const totalAttempts = stats.correctHits + stats.wrongHits;
     const accuracy = totalAttempts > 0 ? Math.round((stats.correctHits / totalAttempts) * 100) : 0;
@@ -600,7 +668,7 @@ export default function App() {
       try {
         localStorage.setItem('collocation_blaster_highscores', JSON.stringify(updated));
       } catch {
-        // Storage restricted
+        // storage restricted
       }
     }
   };
@@ -613,18 +681,20 @@ export default function App() {
         onRemoveLaser={handleRemoveLaser}
       />
 
-      {/* Global Top Bar HUD */}
+      {/* Global Top Bar HUD with BGM and Quit Mission options */}
       <HUD
         stats={stats}
         gameState={gameState}
         isMuted={isMuted}
+        isMusicOn={isMusicOn}
         onToggleMute={handleToggleMute}
+        onToggleMusic={handleToggleMusic}
         onTogglePause={() => {
           if (gameState === 'PLAYING') setGameState('PAUSED');
           else if (gameState === 'PAUSED') setGameState('PLAYING');
         }}
         onOpenTeacherStudio={() => setGameState('TEACHER_STUDIO')}
-        onRestart={() => handleStartGame(gameMode)}
+        onQuitMission={handleQuitMission}
       />
 
       {/* Feedback Toast Banner */}
@@ -678,9 +748,9 @@ export default function App() {
 
       {(gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'ROUND_CLEAR' || gameState === 'BOSS_BATTLE') && (
         <main className="relative w-full h-screen overflow-hidden pt-16">
-          {/* Boss Battle Display if active */}
+          {/* Flying Boss Entity moving dynamically across the arena */}
           {bossState && (
-            <BossBattleDisplay
+            <BossShip
               boss={bossState}
               isHitFlash={bossHitFlash}
             />
@@ -710,7 +780,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Paused Screen Overlay */}
+          {/* Paused Screen Overlay with Resume & Quit options */}
           {gameState === 'PAUSED' && (
             <div className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-4">
               <div className="bg-slate-900 border border-cyan-500/60 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
@@ -718,12 +788,20 @@ export default function App() {
                   SIMULATION PAUSED
                 </h3>
                 <p className="text-xs text-slate-400 mb-6">Take a breath and review your collocations.</p>
-                <button
-                  onClick={() => setGameState(bossState ? 'BOSS_BATTLE' : 'PLAYING')}
-                  className="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-colors shadow-lg"
-                >
-                  Resume Mission
-                </button>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => setGameState(bossState ? 'BOSS_BATTLE' : 'PLAYING')}
+                    className="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-colors shadow-lg"
+                  >
+                    Resume Mission
+                  </button>
+                  <button
+                    onClick={handleQuitMission}
+                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold rounded-xl text-xs uppercase transition-colors"
+                  >
+                    Quit to Mission Select
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -731,7 +809,7 @@ export default function App() {
           {/* Bottom Turret Station with active base word */}
           <TurretStation
             baseWord={bossState ? bossState.baseWord : currentRound.baseWord}
-            category={bossState ? 'Titan Boss Battle' : currentRound.category}
+            category={bossState ? 'Flying Titan Boss' : currentRound.category}
             level={bossState ? 'Boss' : currentRound.level}
             exampleSentence={currentRound.exampleSentence}
             remainingTargets={unfoundTargets.length}
@@ -745,12 +823,14 @@ export default function App() {
         </main>
       )}
 
-      {/* Game Over / Victory Screen */}
+      {/* Game Over / Victory Screen with Home Return & Teacher Report */}
       {(gameState === 'GAME_OVER' || gameState === 'VICTORY') && (
         <GameOverModal
           stats={stats}
           isVictory={gameState === 'VICTORY'}
+          deck={activeDeck}
           onRestart={() => handleStartGame(gameMode)}
+          onReturnHome={handleQuitMission}
           onOpenTeacherStudio={() => setGameState('TEACHER_STUDIO')}
           onSaveHighScore={handleSaveHighScore}
         />

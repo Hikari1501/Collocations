@@ -40,9 +40,8 @@ export const TurretStation: React.FC<TurretStationProps> = ({
       const rad = Math.atan2(deltaY, deltaX);
       const deg = (rad * 180) / Math.PI;
 
-      // Limit barrel rotation so it doesn't aim downwards into the floor
       const clampedDeg = Math.max(-160, Math.min(-20, deg));
-      setAimAngle(clampedDeg + 90); // relative to straight up
+      setAimAngle(clampedDeg + 90);
     };
 
     window.addEventListener('mousemove', handleMouseMove);

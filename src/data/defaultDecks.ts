@@ -310,6 +310,11 @@ export const BOSS_ENCOUNTERS: BossState[] = [
     ],
     hitsTaken: 0,
     avatarIcon: '👾',
+    x: 50,
+    y: 22,
+    vx: 0.16,
+    vy: 0.06,
+    flyAngle: 0,
   },
   {
     name: 'VOID OVERLORD: LEXICON PRIME',
@@ -326,5 +331,10 @@ export const BOSS_ENCOUNTERS: BossState[] = [
     ],
     hitsTaken: 0,
     avatarIcon: '🛸',
+    x: 50,
+    y: 20,
+    vx: 0.22,
+    vy: 0.08,
+    flyAngle: 0,
   },
 ];

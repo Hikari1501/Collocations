@@ -45,7 +45,7 @@ class ErrorBoundary extends Component<Props, State> {
             Collocation Blaster Encountered an Issue
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '14px', maxWidth: '480px', marginBottom: '20px' }}>
-            {this.state.error?.message || 'A unexpected runtime issue occurred.'}
+            {this.state.error?.message || 'An unexpected runtime issue occurred.'}
           </p>
           <button
             onClick={() => {

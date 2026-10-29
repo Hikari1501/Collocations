@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { PlayerStats } from '../types/game';
-import { RotateCcw, Trophy, Award, BookOpen, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { PlayerStats, CollocationDeck } from '../types/game';
+import { 
+  RotateCcw, Trophy, Award, BookOpen, AlertTriangle, 
+  CheckCircle2, Home, Mail, Copy, Check, Download, Send 
+} from 'lucide-react';
 
 interface GameOverModalProps {
   stats: PlayerStats;
   isVictory: boolean;
+  deck: CollocationDeck;
   onRestart: () => void;
+  onReturnHome: () => void;
   onOpenTeacherStudio: () => void;
   onSaveHighScore: (name: string) => void;
 }
@@ -13,12 +18,16 @@ interface GameOverModalProps {
 export const GameOverModal: React.FC<GameOverModalProps> = ({
   stats,
   isVictory,
+  deck,
   onRestart,
+  onReturnHome,
   onOpenTeacherStudio,
   onSaveHighScore,
 }) => {
   const [playerName, setPlayerName] = useState('');
   const [hasSaved, setHasSaved] = useState(false);
+  const [copiedReport, setCopiedReport] = useState(false);
+  const [teacherEmailInput, setTeacherEmailInput] = useState(deck.teacherEmail || '');
 
   const totalAttempts = stats.correctHits + stats.wrongHits;
   const accuracy = totalAttempts > 0 ? Math.round((stats.correctHits / totalAttempts) * 100) : 0;
@@ -28,6 +37,70 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     if (!playerName.trim() || hasSaved) return;
     onSaveHighScore(playerName.trim());
     setHasSaved(true);
+  };
+
+  // Generate plain-text classroom report
+  const generateReportText = () => {
+    const student = playerName.trim() || 'Student';
+    const dateStr = new Date().toLocaleDateString();
+    
+    let text = `====================================\n`;
+    text += `ENGLISH COLLOCATION BLASTER REPORT\n`;
+    text += `====================================\n`;
+    text += `Student Name: ${student}\n`;
+    text += `Deck / Topic: ${deck.title} (${deck.level})\n`;
+    text += `Date Completed: ${dateStr}\n`;
+    text += `Final Score: ${stats.score.toLocaleString()} pts\n`;
+    text += `Accuracy: ${accuracy}%\n`;
+    text += `Max Combo Streak: x${stats.maxCombo}\n`;
+    text += `Sector Reached: Level ${stats.level}\n`;
+    text += `Bosses Defeated: ${stats.bossesDefeated}\n\n`;
+
+    text += `--- MASTERED COLLOCATIONS (${stats.learnedCollocations.length}) ---\n`;
+    if (stats.learnedCollocations.length > 0) {
+      stats.learnedCollocations.forEach((item) => {
+        text += `✓ ${item.phrase}\n`;
+      });
+    } else {
+      text += `None recorded.\n`;
+    }
+
+    text += `\n--- AREAS TO REVIEW & TEACHER TIPS (${stats.mistakesMade.length}) ---\n`;
+    if (stats.mistakesMade.length > 0) {
+      stats.mistakesMade.forEach((m) => {
+        text += `✗ Attempted: ${m.baseWord} + ${m.word} --> Correction Tip: ${m.tip}\n`;
+      });
+    } else {
+      text += `Flawless run! Zero collocation mistakes!\n`;
+    }
+    text += `====================================\n`;
+    return text;
+  };
+
+  const handleCopyReport = () => {
+    const report = generateReportText();
+    navigator.clipboard.writeText(report);
+    setCopiedReport(true);
+    setTimeout(() => setCopiedReport(false), 2500);
+  };
+
+  const handleEmailReport = () => {
+    const student = playerName.trim() || 'Student';
+    const recipient = teacherEmailInput.trim();
+    const subject = encodeURIComponent(`Collocation Game Report: ${student} - ${deck.title}`);
+    const body = encodeURIComponent(generateReportText());
+    window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
+  };
+
+  const handleDownloadReport = () => {
+    const report = generateReportText();
+    const element = document.createElement('a');
+    const file = new Blob([report], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = `${(playerName.trim() || 'student').toLowerCase()}_collocations_report.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
   };
 
   return (
@@ -48,7 +121,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             {isVictory
               ? 'Outstanding shooting! You cleared all sectors and defeated the Collocation Titans!'
-              : 'Deflector shields depleted! Great effort — review your vocabulary below and try again!'}
+              : 'Deflector shields depleted! Great effort — review your vocabulary below and send your report to your teacher!'}
           </p>
         </div>
 
@@ -91,17 +164,17 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
         </div>
 
-        {/* High Score Submission */}
-        {!hasSaved ? (
-          <form onSubmit={handleSaveScore} className="mb-6 flex gap-2">
-            <input
-              type="text"
-              maxLength={15}
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Enter cadet name for leaderboard..."
-              className="flex-1 bg-slate-950 border border-cyan-500/40 text-slate-100 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-cyan-400"
-            />
+        {/* Leaderboard Submission & Student Name */}
+        <form onSubmit={handleSaveScore} className="mb-6 flex gap-2">
+          <input
+            type="text"
+            maxLength={20}
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            placeholder="Enter student / cadet name..."
+            className="flex-1 bg-slate-950 border border-cyan-500/40 text-slate-100 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-cyan-400"
+          />
+          {!hasSaved ? (
             <button
               type="submit"
               disabled={!playerName.trim()}
@@ -109,16 +182,62 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             >
               Save Record
             </button>
-          </form>
-        ) : (
-          <div className="mb-6 py-2 px-4 bg-emerald-950/60 border border-emerald-500/50 rounded-xl text-center text-xs font-semibold text-emerald-300">
-            ✓ Score saved to arcade high score records!
+          ) : (
+            <div className="px-4 py-2 bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              Saved!
+            </div>
+          )}
+        </form>
+
+        {/* Teacher Report Dispatch Section */}
+        <div className="mb-6 bg-slate-950/90 border border-cyan-500/40 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Send className="w-3.5 h-3.5 text-cyan-400" />
+              Send Results to Teacher
+            </span>
+            <span className="text-[10px] text-slate-400">Classroom Homework Submission</span>
           </div>
-        )}
+
+          <div className="flex flex-col sm:flex-row gap-2 mb-3">
+            <input
+              type="email"
+              value={teacherEmailInput}
+              onChange={(e) => setTeacherEmailInput(e.target.value)}
+              placeholder="Teacher's email (e.g. teacher@school.edu)..."
+              className="flex-1 bg-slate-900 border border-slate-700 text-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-400"
+            />
+            <button
+              onClick={handleEmailReport}
+              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shadow-sm"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              Email Report
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyReport}
+              className="flex-1 py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+            >
+              {copiedReport ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
+              {copiedReport ? 'Copied to Clipboard!' : 'Copy for Google Classroom'}
+            </button>
+            <button
+              onClick={handleDownloadReport}
+              className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+              title="Download text report"
+            >
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              Download .txt
+            </button>
+          </div>
+        </div>
 
         {/* Learning Review Section */}
-        <div className="space-y-4 mb-6 max-h-56 overflow-y-auto pr-1">
-          {/* Mistakes to review */}
+        <div className="space-y-4 mb-6 max-h-48 overflow-y-auto pr-1">
           {stats.mistakesMade.length > 0 && (
             <div className="bg-rose-950/30 border border-rose-900/50 rounded-2xl p-4">
               <span className="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
@@ -140,7 +259,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             </div>
           )}
 
-          {/* Mastered collocations */}
           {stats.learnedCollocations.length > 0 && (
             <div className="bg-emerald-950/30 border border-emerald-900/50 rounded-2xl p-4">
               <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
@@ -148,7 +266,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 Collocations Blasted ({stats.learnedCollocations.length})
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {stats.learnedCollocations.slice(0, 14).map((item, idx) => (
+                {stats.learnedCollocations.slice(0, 12).map((item, idx) => (
                   <span
                     key={idx}
                     className="bg-slate-950/80 border border-emerald-600/40 text-emerald-300 px-2.5 py-1 rounded-lg text-xs font-semibold"
@@ -161,8 +279,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        {/* Action Buttons: Play Again / Return Home / Teacher Studio */}
+        <div className="flex flex-col sm:flex-row items-center gap-2.5">
           <button
             onClick={onRestart}
             className="w-full sm:flex-1 py-3 bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black tracking-wider uppercase text-xs rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2"
@@ -172,8 +290,16 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </button>
 
           <button
+            onClick={onReturnHome}
+            className="w-full sm:w-auto px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+          >
+            <Home className="w-4 h-4 text-cyan-400" />
+            Return to Home
+          </button>
+
+          <button
             onClick={onOpenTeacherStudio}
-            className="w-full sm:w-auto px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
           >
             <BookOpen className="w-4 h-4 text-cyan-400" />
             Teacher Studio

@@ -12,31 +12,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      // Ensure trailing slash on GitHub Pages so relative paths './assets/' always resolve into repository subfolder
-      if (!location.pathname.endsWith('/') && !location.pathname.endsWith('.html') && !location.pathname.includes('.')) {
-        location.replace(location.pathname + '/' + location.search + location.hash);
-      }
-    </script>
   </head>
   <body>
-    <div id="root">
-      <div id="boot-loader" style="min-height: 100vh; background-color: #090d16; color: #22d3ee; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; text-align: center; padding: 20px;">
-        <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">Loading Collocation Blaster...</h2>
-        <p style="color: #94a3b8; font-size: 13px; max-width: 450px;">Preparing space defense arena and curriculum assets.</p>
-      </div>
-    </div>
-    <script>
-      window.addEventListener('error', function(event) {
-        var loader = document.getElementById('boot-loader');
-        if (loader) {
-          loader.innerHTML = '<h2 style="color: #ef4444; font-size: 20px; font-weight: bold;">Loading Failed</h2>' +
-            '<p style="color: #fca5a5; font-size: 13px; max-width: 500px; margin-top: 8px;">' + (event.message || 'Asset failed to load') + '</p>' +
-            '<p style="color: #64748b; font-size: 11px; margin-top: 8px;">URL: ' + window.location.href + '</p>';
-        }
-      });
-    </script>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

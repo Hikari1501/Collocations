@@ -13,17 +13,17 @@ export type GameState =
 
 export interface DistractorItem {
   word: string;
-  tip: string; // e.g. "We say 'do homework', never 'make homework'!"
+  tip: string;
 }
 
 export interface CollocationRound {
   id: string;
-  baseWord: string; // e.g. "MAKE", "TAKE", "HEAVY"
-  category: string; // e.g. "Everyday Verbs", "Adjectives", "Academic"
+  baseWord: string;
+  category: string;
   level: 'A2' | 'B1' | 'B2' | 'C1';
-  targetCollocations: string[]; // words that correctly collocate with baseWord
-  distractors: DistractorItem[]; // words that do NOT collocate, with educational tips
-  exampleSentence?: string; // e.g. "I need to make a decision quickly."
+  targetCollocations: string[];
+  distractors: DistractorItem[];
+  exampleSentence?: string;
 }
 
 export interface CollocationDeck {
@@ -33,6 +33,8 @@ export interface CollocationDeck {
   level: 'A2' | 'B1' | 'B2' | 'C1' | 'MIXED';
   isDefault: boolean;
   rounds: CollocationRound[];
+  teacherEmail?: string;
+  classCode?: string;
 }
 
 export type WordOrigin = 'TOP' | 'LEFT' | 'RIGHT';
@@ -44,8 +46,8 @@ export interface FlyingWord {
   tip?: string;
   x: number; // percentage (0 to 100)
   y: number; // percentage (0 to 100)
-  vx: number; // horizontal velocity per tick
-  vy: number; // vertical velocity per tick
+  vx: number;
+  vy: number;
   rotation: number;
   origin: WordOrigin;
   isHit?: boolean;
@@ -63,6 +65,12 @@ export interface BossState {
   distractors: DistractorItem[];
   hitsTaken: number;
   avatarIcon: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  flyAngle: number;
+  isHitFlash?: boolean;
 }
 
 export interface LaserBeam {
@@ -119,4 +127,18 @@ export interface EducationalFeedback {
   baseWord: string;
   word: string;
   timestamp: number;
+}
+
+export interface StudentReport {
+  studentName: string;
+  deckId: string;
+  deckTitle: string;
+  teacherEmail?: string;
+  score: number;
+  accuracy: number;
+  maxCombo: number;
+  levelReached: number;
+  date: string;
+  masteredPhrases: string[];
+  mistakes: { baseWord: string; word: string; tip: string }[];
 }
