@@ -1,0 +1,6 @@
+{
+  "name": "Collocation Blaster: Arcade English Defender",
+  "description": "Retro arcade space defender game where students shoot flying words to master English collocations with instant feedback, boss battles, and teacher deck customization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

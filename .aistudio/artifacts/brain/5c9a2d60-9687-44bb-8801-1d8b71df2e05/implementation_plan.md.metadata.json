@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for the Retro Arcade English Collocation Shooter game ('Collocation Blaster'). Includes multi-directional wave mechanics, base word turret, instant laser feedback, wrong-choice educational tips, progressive speed levels, local high scores, and a comprehensive teacher customization suite with preloaded A2-C1 decks and CSV import/export.",
+  "updatedAt":  "2026-10-29T12:07:49.051105108Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
