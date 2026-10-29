@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
+    "build:docs": "vite build --outDir docs",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist --dotfiles",
-    "clean": "rm -rf dist server.js",
+    "clean": "rm -rf dist docs server.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
